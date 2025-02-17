@@ -15,7 +15,7 @@ Efficient log-structured key-value storage engine, designed for low-latency read
   │   ├── index                 # 内存索引管理
   │   │   ├── btree.go          # B树索引实现
   │   │   ├── index.go          # 内存操作接口定义
-  │   │   ├── shard_map.go     # 分配哈希表索引实现
+  │   │   ├── shard_map.go      # 分片哈希表索引实现
   │   │   └── loader.go         # 数据文件索引重建
   │   ├── record                # 数据记录结构
   │   │   ├── record.go         # 记录结构定义 文件记录结构和内存索引定义
@@ -58,3 +58,15 @@ type LogRecord struct {
 ```
 
 - `CRC`：校验范围除 CRC 字段以外的所有字段，用于校验数据是否损坏
+
+
+## Index
+
+### ShardMap
+
+ShardMap 是一个基于go原生map实现的分片哈希结构，用于快速定位数据记录
+
+- 分片设计原理
+  - `减少锁竞争` 全局map拆分成多个独立分片(shard)，每个分片持有自己的锁，减少锁颗粒度
+  - `哈希定位` 每个分片使用一致性哈希算法，将key映射到分片，减少冲突
+  - `读写分离` 使用sync.RWMutex读写锁，允许并发读，写互斥
