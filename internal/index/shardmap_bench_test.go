@@ -1,8 +1,15 @@
 package index
 
 import (
+	"math/rand"
 	"strconv"
 	"testing"
+)
+
+const (
+	numItems  = 1_000_000 // 测试数据量
+	keySize   = 32        // key长度
+	valueSize = 1024
 )
 
 // 初始化测试数据
@@ -17,15 +24,19 @@ func initShardMap(n int) *ShardMap {
 
 // 基准测试：纯写入性能
 func BenchmarkShardMap_Write(b *testing.B) {
-	m := NewShardMap(32, defaultHasher).(*ShardMap)
+	m := NewShardMap(64, defaultHasher).(*ShardMap)
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
-		i := 0
+		r := rand.New(rand.NewSource(rand.Int63()))
 		for pb.Next() {
-			key := strconv.Itoa(i)
-			m.Put([]byte(key), &Entry{})
-			i++
+			key := generateKey(r)
+			m.Put(key, &Entry{
+				// FileID:    1,
+				// Offset:    1,
+				// ValueSize: valueSize,
+				// Timestamp: uint64(time.Now().UnixNano()),
+			})
 		}
 	})
 }
@@ -69,7 +80,7 @@ func BenchmarkShardMap_RW50(b *testing.B) {
 func BenchmarkShardMap_HotShard(b *testing.B) {
 	// 自定义哈希函数使所有Key命中同一分片
 	hotHasher := func(string) uint32 { return 0 }
-	m := NewShardMap(32, hotHasher).(*ShardMap)
+	m := NewShardMap(64, hotHasher).(*ShardMap)
 
 	b.Run("Write-Hot", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
@@ -99,7 +110,7 @@ func BenchmarkShardMap_HotShard(b *testing.B) {
 
 // 辅助函数：带自定义哈希的初始化
 func initShardMapWithHasher(n int, hasher func(string) uint32) *ShardMap {
-	m := NewShardMap(32, hasher).(*ShardMap)
+	m := NewShardMap(64, hasher).(*ShardMap)
 	for i := 0; i < n; i++ {
 		key := strconv.Itoa(i)
 		m.Put([]byte(key), &Entry{})
@@ -134,4 +145,11 @@ func BenchmarkShardMap_ShardCount(b *testing.B) {
 			})
 		})
 	}
+}
+
+// 辅助函数：生成随机键
+func generateKey(r *rand.Rand) []byte {
+	b := make([]byte, keySize)
+	r.Read(b)
+	return b
 }

@@ -1,10 +1,9 @@
 package index
 
 import (
-	"hash/fnv"
 	"sync"
-	"sync/atomic"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/chhz0/caskv/internal/utils"
 )
 
@@ -14,94 +13,119 @@ const defaultShardCount = 32
 
 // 分片结构
 type shardEntry struct {
-	sync.RWMutex
+	rw      sync.RWMutex
 	entries map[string]*Entry
 	size    int64
-	
+}
+
+func (se *shardEntry) load(key string) (*Entry, bool) {
+	se.rw.RLock()
+	defer se.rw.RUnlock()
+	entry, ok := se.entries[key]
+	return entry, ok
+}
+
+func (se *shardEntry) store(key string, value *Entry) {
+	se.rw.Lock()
+	defer se.rw.Unlock()
+
+	se.entries[key] = value
+	se.size++
+}
+
+func (se *shardEntry) delete(key string) (*Entry, bool) {
+	se.rw.Lock()
+	defer se.rw.Unlock()
+
+	entry, ok := se.entries[key]
+	if !ok {
+		return nil, ok
+	}
+
+	delete(se.entries, key)
+	se.size--
+	return entry, ok
+}
+
+func (se *shardEntry) ssize() int64 {
+	se.rw.RLock()
+	defer se.rw.RUnlock()
+	return se.size
+}
+
+func (se *shardEntry) forange(fn func(key string, value *Entry) bool) {
+	se.rw.RLock()
+	defer se.rw.RUnlock()
+	for k, v := range se.entries {
+		if !fn(k, v) {
+			return
+		}
+	}
+}
+
+func (se *shardEntry) clear() {
+	se.rw.Lock()
+	defer se.rw.Unlock()
+
+	se.entries = make(map[string]*Entry, 1024)
+	se.size = 0
 }
 
 // ShardMap  并发安全的分片map
 type ShardMap struct {
-	shareds []*shardEntry       // 分片数组
-	hasher  func(string) uint32 // 哈希函数
-	size    atomic.Int64
+	shareds    []*shardEntry       // 分片数组
+	shardCount int                 // 分片数量
+	hasher     func(string) uint32 // 哈希函数
+}
+
+func NewShardMap(shardCount int, hasher func(string) uint32) Indexer {
+	shards := make([]*shardEntry, shardCount)
+	for i := 0; i < shardCount; i++ {
+		shards[i] = &shardEntry{entries: make(map[string]*Entry, 1024)}
+	}
+
+	return &ShardMap{
+		shareds:    shards,
+		shardCount: shardCount,
+		hasher:     hasher,
+	}
 }
 
 // Get implements Indexer.
 func (sm *ShardMap) Get(key []byte) (*Entry, bool) {
 	k := utils.BytesToString(key)
 	shard := sm.getShard(k)
-	shard.RLock()
-	defer shard.RUnlock()
 
-	entry, ok := shard.entries[k]
-	if !ok {
-		return nil, false
-	}
-
-	return entry, true
+	return shard.load(k)
 }
 
 // Put implements Indexer.
 func (sm *ShardMap) Put(key []byte, value *Entry) {
 	k := utils.BytesToString(key)
 	shard := sm.getShard(k)
-	shard.Lock()
-	defer shard.Unlock()
 
-	shard.entries[k] = value
-	shard.size++
+	shard.store(k, value)
 }
 
 // Delete implements Indexer.
 func (sm *ShardMap) Del(key []byte) (*Entry, bool) {
 	k := utils.BytesToString(key)
 	shard := sm.getShard(k)
-	shard.Lock()
-	defer shard.Unlock()
-
-	entry, ok := shard.entries[k]
-	if !ok {
-		return nil, false
-	}
-
-	delete(shard.entries, k)
-	shard.size--
-	return entry, true
+	return shard.delete(k)
 }
 
 // Len implements Indexer.
 func (sm *ShardMap) Size() int {
-	if len(sm.shareds) == 0 {
+	if sm.shardCount == 0 {
 		return 0
 	}
 
 	var totalSize int64
-	shardSize := make(chan int64, len(sm.shareds))
-
-	var wg sync.WaitGroup
-	wg.Add(len(sm.shareds))
-
 	for _, shard := range sm.shareds {
-		go func(s *shardEntry) {
-			defer wg.Done()
-
-			s.RLock()
-			defer s.RUnlock()
-			shardSize <- s.size
-		}(shard)
+		totalSize += shard.ssize()
 	}
 
-	go func() {
-		wg.Wait()
-		close(shardSize)
-	}()
-
-	for size := range shardSize {
-		totalSize += size
-	}
-
-	return int(totalSize)
+	return utils.Int64ToInt(totalSize)
 }
 
 // Scan implements Indexer.
@@ -111,7 +135,7 @@ func (sm *ShardMap) Scan(start int, end int) <-chan Entry {
 
 // Snapshot implements Indexer.
 func (sm *ShardMap) Snapshot() map[string]*Entry {
-	snap := make(map[string]*Entry, sm.size.Load())
+	snap := make(map[string]*Entry, sm.Size())
 	sm.iter(func(key string, value *Entry) bool {
 		snap[key] = value
 		return true
@@ -121,55 +145,26 @@ func (sm *ShardMap) Snapshot() map[string]*Entry {
 
 func (sm *ShardMap) iter(fn func(key string, value *Entry) bool) {
 	for _, shard := range sm.shareds {
-		shard.RLock()
-		items := make(map[string]*Entry, len(shard.entries))
-		for k, v := range shard.entries {
-			items[k] = v
-		}
-		shard.RUnlock()
-
-		// 处理快照数据
-		for k, v := range items {
-			if !fn(k, v) {
-				return
-			}
-		}
+		shard.forange(fn)
 	}
 }
 
 // Close implements Indexer.
 func (sm *ShardMap) Close() error {
 	for _, shard := range sm.shareds {
-		shard.Lock()
-		shard.entries = make(map[string]*Entry)
-		shard.Unlock()
+		shard.clear()
 	}
-	sm.size.Store(0)
 	return nil
 }
 
 func (sm *ShardMap) Keys() []string {
-	keys := make([]string, 0, sm.size.Load())
-	mutex := &sync.Mutex{}
-
-	var wg sync.WaitGroup
-	wg.Add(len(sm.shareds))
-
+	keys := make([]string, 0, sm.Size())
 	for _, shard := range sm.shareds {
-		go func(s *shardEntry) {
-			defer wg.Done()
-
-			s.RLock()
-			defer s.RUnlock()
-			for k := range s.entries {
-				mutex.Lock()
-				keys = append(keys, k)
-				mutex.Unlock()
-			}
-		}(shard)
+		shard.forange(func(key string, value *Entry) bool {
+			keys = append(keys, key)
+			return true
+		})
 	}
-
-	wg.Wait()
 	return keys
 }
 
@@ -183,19 +178,7 @@ func (sm *ShardMap) Reshard(newCount int) {
 
 func (sm *ShardMap) getShard(key string) *shardEntry {
 	hashed := sm.hasher(key)
-	return sm.shareds[hashed%uint32(len(sm.shareds))]
-}
-
-func NewShardMap(shardCount int, hasher func(string) uint32) Indexer {
-	shards := make([]*shardEntry, shardCount)
-	for i := 0; i < shardCount; i++ {
-		shards[i] = &shardEntry{entries: make(map[string]*Entry)}
-	}
-
-	return &ShardMap{
-		shareds: shards,
-		hasher:  hasher,
-	}
+	return sm.shareds[hashed%uint32(sm.shardCount)]
 }
 
 // Iterator implements Indexer.
@@ -247,14 +230,20 @@ func (sit *shardIterator) Next() {
 // Value implements Iterator.
 func (sit *shardIterator) Value() *Entry {
 	shard := sit.sm.shareds[sit.shardIdx]
-	shard.RLock()
-	defer shard.RUnlock()
-	return shard.entries[sit.keys[sit.cursor]]
+
+	entry, ok := shard.load(sit.keys[sit.cursor])
+	if !ok {
+		return nil
+	}
+	return entry
 }
 
 // Close implements Iterator.
 func (sit *shardIterator) Close() {
+	sit.sm = nil
+	sit.shardIdx = 0
 	sit.keys = nil
+	sit.cursor = -1
 }
 
 // Key implements Iterator.
@@ -267,17 +256,18 @@ func (sit *shardIterator) Key() []byte {
 
 func (sit *shardIterator) loadKeys() {
 	shard := sit.sm.shareds[sit.shardIdx]
-	shard.RLock()
-	defer shard.RUnlock()
 
-	sit.keys = make([]string, 0, len(shard.entries))
-	for k := range shard.entries {
-		sit.keys = append(sit.keys, k)
-	}
+	sit.keys = make([]string, 0, shard.ssize())
+	shard.forange(func(key string, value *Entry) bool {
+		sit.keys = append(sit.keys, key)
+		return true
+	})
 }
 
 func defaultHasher(key string) uint32 {
-	h := fnv.New32a()
-	h.Write([]byte(key))
-	return h.Sum32()
+	return utils.UInt64ToUInt32(xxhash.Sum64String(key))
+}
+
+func xxxHasher(key string) uint32 {
+	return utils.UInt64ToUInt32(xxhash.Sum64String(key))
 }

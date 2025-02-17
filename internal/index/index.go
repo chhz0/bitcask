@@ -35,7 +35,7 @@ func New(indexType IndexType) Indexer {
 	case SHARDMAP:
 		return NewShardMap(defaultShardCount, defaultHasher)
 	case BTREE:
-		return NewBtree()
+		return NewBTree(32)
 	default:
 		return NewShardMap(defaultShardCount, defaultHasher)
 	}
