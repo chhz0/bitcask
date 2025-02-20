@@ -1,6 +1,10 @@
-package utils
+// zerocopy provides zero-copy operations for byte slices.
+// use unsafe may be dangerous, if you don't know what you are doing, don't use it.
+package zerocopy
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 // BytesToString converts a byte slice to a string without copying the underlying data.
 func BytesToString(b []byte) string {
@@ -16,14 +20,18 @@ func StringToBytes(s string) []byte {
 	))
 }
 
-func IntToUint32(i int) uint32 {
+func U32ToBytes(u32 uint32) []byte {
+	return (*[4]byte)(unsafe.Pointer(&u32))[:]
+}
+
+func IntToU32(i int) uint32 {
 	return *(*uint32)(unsafe.Pointer(&i))
 }
 
-func Int64ToInt(i64 int64) int {
+func I64ToInt(i64 int64) int {
 	return *(*int)(unsafe.Pointer(&i64))
 }
 
-func UInt64ToUInt32(u64 uint64) uint32 {
+func U64ToU32(u64 uint64) uint32 {
 	return *(*uint32)(unsafe.Pointer(&u64))
 }

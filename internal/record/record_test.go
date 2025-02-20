@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/binary"
+	"github.com/chhz0/go-bitcask/internal/errs"
 	"hash/crc32"
 	"testing"
 
@@ -57,7 +58,7 @@ func TestLogRecord_Encode_InvalidKeySize(t *testing.T) {
 		Delete:    false,
 	}
 	encoded, err := lr.Encode()
-	assert.ErrorIs(t, err, ErrInvalidRecord)
+	assert.ErrorIs(t, err, errs.ErrInvalidRecord)
 	assert.Nil(t, encoded)
 }
 
@@ -79,7 +80,7 @@ func TestDecode_InvalidHeaderLength_ShouldError(t *testing.T) {
 	buf := make([]byte, HeaderSize-1) // 创建一个长度为HeaderSize-1的切片
 	record, err := DecodeLogRecord(buf)
 	assert.Nil(t, record)
-	assert.ErrorIs(t, err, ErrInvalidRecord)
+	assert.ErrorIs(t, err, errs.ErrInvalidRecord)
 }
 
 func TestDecode_HeaderShortForKV_ShouldError(t *testing.T) {
@@ -88,7 +89,7 @@ func TestDecode_HeaderShortForKV_ShouldError(t *testing.T) {
 	binary.LittleEndian.PutUint32(buf[14:18], 10) // 设置valueSize为10
 	record, err := DecodeLogRecord(buf)
 	assert.Nil(t, record)
-	assert.ErrorIs(t, err, ErrInvalidRecord)
+	assert.ErrorIs(t, err, errs.ErrInvalidRecord)
 }
 
 func TestDecode_ValidBuf_ShouldDecodeLogRecord(t *testing.T) {

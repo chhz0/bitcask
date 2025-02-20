@@ -141,7 +141,7 @@ func (bi *gbtreeIterator) Value() *Entry {
 	return v
 }
 
-func (bi *gbtreeIterator) Close() {
+func (bi *gbtreeIterator) Release() {
 	bi.keys = nil
 	bi.bt = nil
 }

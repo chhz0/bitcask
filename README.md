@@ -1,10 +1,10 @@
-# caskv
+# go-bitcask
 Efficient log-structured key-value storage engine, designed for low-latency read and write, high throughput and high reliability
 
 ```
-/caskv
+/go-bitcask
   ├── cmd
-  │   └── caskv-cli            # 命令行工具入口（可选）
+  │   └── go-bitcask-cli            # 命令行工具入口（可选）
   ├── internal
   │   ├── fio                   # 文件 I/O 管理
   │   │   ├── fio.go            # 文件操作接口定义
@@ -15,7 +15,7 @@ Efficient log-structured key-value storage engine, designed for low-latency read
   │   ├── index                 # 内存索引管理
   │   │   ├── btree.go          # B树索引实现
   │   │   ├── index.go          # 内存操作接口定义
-  │   │   ├── shard_map.go      # 分片哈希表索引实现
+  │   │   ├── shardmap.go      # 分片哈希表索引实现
   │   │   └── loader.go         # 数据文件索引重建
   │   ├── record                # 数据记录结构
   │   │   ├── record.go         # 记录结构定义 文件记录结构和内存索引定义
@@ -25,11 +25,11 @@ Efficient log-structured key-value storage engine, designed for low-latency read
   │   │   └── decoder.go        # 二进制解码
   │   ├── merger                # 数据合并模块
   │   │    └── compact.go        # 合并旧文件，清理失效数据
-  │   ├── wal.go                 #
+  │   ├── wal.go                 # WAL日志管理
   │   └── engine.go             # 引擎接口（Put/Get/Delete）
   ├── tests                     # 单元测试和压力测试
   ├── betch.go // 批处理
-  ├── caskv.go // 引擎初始化，对外暴露接口
+  ├── bitcask.go // 引擎初始化，对外暴露接口
   ├── errors.go // 错误定义
   ├── hint.go
   ├── iter.go // 迭代器

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/chhz0/caskv/internal/utils"
+	"github.com/chhz0/go-bitcask/internal/utils/zerocopy"
 )
 
 // - 8核CPU：16-64分片
@@ -93,7 +93,7 @@ func NewShardMap(shardCount int, hasher func(string) uint32) Indexer {
 
 // Get implements Indexer.
 func (sm *ShardMap) Get(key []byte) (*Entry, bool) {
-	k := utils.BytesToString(key)
+	k := zerocopy.BytesToString(key)
 	shard := sm.getShard(k)
 
 	return shard.load(k)
@@ -101,20 +101,20 @@ func (sm *ShardMap) Get(key []byte) (*Entry, bool) {
 
 // Put implements Indexer.
 func (sm *ShardMap) Put(key []byte, value *Entry) {
-	k := utils.BytesToString(key)
+	k := zerocopy.BytesToString(key)
 	shard := sm.getShard(k)
 
 	shard.store(k, value)
 }
 
-// Delete implements Indexer.
+// Del  implements Indexer.
 func (sm *ShardMap) Del(key []byte) (*Entry, bool) {
-	k := utils.BytesToString(key)
+	k := zerocopy.BytesToString(key)
 	shard := sm.getShard(k)
 	return shard.delete(k)
 }
 
-// Len implements Indexer.
+// Size Len implements Indexer.
 func (sm *ShardMap) Size() int {
 	if sm.shardCount == 0 {
 		return 0
@@ -125,7 +125,7 @@ func (sm *ShardMap) Size() int {
 		totalSize += shard.ssize()
 	}
 
-	return utils.Int64ToInt(totalSize)
+	return zerocopy.I64ToInt(totalSize)
 }
 
 // Scan implements Indexer.
@@ -238,8 +238,8 @@ func (sit *shardIterator) Value() *Entry {
 	return entry
 }
 
-// Close implements Iterator.
-func (sit *shardIterator) Close() {
+// Release implements Iterator.
+func (sit *shardIterator) Release() {
 	sit.sm = nil
 	sit.shardIdx = 0
 	sit.keys = nil
@@ -265,9 +265,9 @@ func (sit *shardIterator) loadKeys() {
 }
 
 func defaultHasher(key string) uint32 {
-	return utils.UInt64ToUInt32(xxhash.Sum64String(key))
+	return zerocopy.U64ToU32(xxhash.Sum64String(key))
 }
 
 func xxxHasher(key string) uint32 {
-	return utils.UInt64ToUInt32(xxhash.Sum64String(key))
+	return zerocopy.U64ToU32(xxhash.Sum64String(key))
 }
