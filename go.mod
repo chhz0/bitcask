@@ -3,7 +3,7 @@ module github.com/chhz0/go-bitcask
 go 1.23.6
 
 require (
-	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/cespare/xxhash v1.1.0
 	github.com/google/btree v1.1.3
 	github.com/stretchr/testify v1.10.0
 )

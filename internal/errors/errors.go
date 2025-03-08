@@ -1,4 +1,5 @@
-package errs
+// errors 统一定义bitcask.internal的错误
+package errors
 
 import "errors"
 
