@@ -18,10 +18,9 @@ const (
 // Header 数据文件日志记录头结构, 大小为13字节
 // crc[4] + keySize[4] + valueSize[4] + type[1]
 type Header struct {
-	CRC  uint32 // crc校验码
-	Ks   uint32 // keySize
-	Vs   uint32 // valueSize -1 代表删除
-	Type byte
+	CRC uint32 // crc校验码
+	Ksz uint32 // keySize
+	Vsz uint32 // valueSize -1 代表删除
 }
 
 // HeaderWithExp 数据文件日志记录头结构, 大小为29字节

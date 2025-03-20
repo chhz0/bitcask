@@ -1,30 +1,48 @@
-package index
+package idx
 
 import (
 	"bytes"
 	"sync"
 
-	"github.com/chhz0/go-bitcask/internal/entry"
 	gbtree "github.com/google/btree"
 )
+
+// 新增对象池优化（放在文件底部）
+var gbtreeItemPool = sync.Pool{
+	New: func() interface{} {
+		return new(gbtreeItem)
+	},
+}
+
+func getGBtreeItem(key []byte, val *Index) *gbtreeItem {
+	item := gbtreeItemPool.Get().(*gbtreeItem)
+	item.key = bytes.Clone(key) // 深拷贝保证key安全
+	item.value = val
+	return item
+}
+
+func putGBtreeItem(item *gbtreeItem) {
+	item.key = nil
+	item.value = nil
+	gbtreeItemPool.Put(item)
+}
 
 // 实现google/gbtree需要的Item接口
 type gbtreeItem struct {
 	key   []byte
-	value *entry.Index
+	value *Index
 }
 
 func (bi gbtreeItem) Less(than gbtree.Item) bool {
 	other := than.(*gbtreeItem)
-	return bytes.Compare(bi.key, other.key) < 0
+	return bytes.Compare(bi.key, other.key) == -1
 }
 
-// btree B树索引实现
-type btree struct {
+// Btree B树索引实现
+type Btree struct {
 	degree int // B树度数
 	tree   *gbtree.BTree
 	lock   sync.RWMutex
-	size   int
 }
 
 // // Close implements Indexer.
@@ -32,59 +50,56 @@ type btree struct {
 // 	panic("unimplemented")
 // }
 
-// // Snapshot implements Indexer.
-// func (bt *btree) Snapshot() map[string]*Entry {
-// 	panic("unimplemented")
-// }
+func NewBTree(degree int) *Btree {
+	return &Btree{
+		degree: degree,
+		tree:   gbtree.New(degree),
+	}
+}
 
-// func NewBTree(degree int) Indexer {
-// 	return &btree{
-// 		degree: degree,
-// 		tree:   gbtree.New(degree),
-// 	}
-// }
+// Get 查找key
+func (bt *Btree) Get(key []byte) (*Index, bool) {
+	bt.lock.RLock()
+	defer bt.lock.RUnlock()
 
-// // Get 查找key
-// func (bt *btree) Get(key []byte) (*Entry, bool) {
-// 	bt.lock.RLock()
-// 	defer bt.lock.RUnlock()
+	item := bt.tree.Get(&gbtreeItem{key: key})
+	if item == nil {
+		return nil, false
+	}
 
-// 	item := bt.tree.Get(&gbtreeItem{key: key})
-// 	if item == nil {
-// 		return nil, false
-// 	}
-// 	return item.(*gbtreeItem).value, true
-// }
+	if it, ok := item.(*gbtreeItem); ok {
+		return it.value, true
+	}
 
-// // Put 插入/更新
-// func (bt *btree) Put(key []byte, value *Entry) {
-// 	bt.lock.Lock()
-// 	defer bt.lock.Unlock()
+	return nil, false
+}
 
-// 	item := &gbtreeItem{key: key, value: value}
-// 	if old := bt.tree.ReplaceOrInsert(item); old == nil {
-// 		bt.size++
-// 	}
-// }
+// Put 插入/更新
+func (bt *Btree) Put(key []byte, value *Index) {
+	bt.lock.Lock()
+	defer bt.lock.Unlock()
 
-// // Del 删除key
-// func (bt *btree) Del(key []byte) (*Entry, bool) {
-// 	bt.lock.Lock()
-// 	defer bt.lock.Unlock()
+	item := getGBtreeItem(key, value)
+	defer putGBtreeItem(item)
 
-// 	if item := bt.tree.Delete(&gbtreeItem{key: key}); item != nil {
-// 		bt.size--
-// 		return item.(*gbtreeItem).value, true
-// 	}
-// 	return nil, false
-// }
+	_ = bt.tree.ReplaceOrInsert(item)
+}
 
-// // Size 数据量
-// func (bt *btree) Size() int {
-// 	bt.lock.RLock()
-// 	defer bt.lock.RUnlock()
-// 	return bt.size
-// }
+// Del 删除key
+func (bt *Btree) Del(key []byte) (*Index, bool) {
+	bt.lock.Lock()
+	defer bt.lock.Unlock()
+
+	if item := bt.tree.Delete(&gbtreeItem{key: key}); item != nil {
+		return item.(*gbtreeItem).value, true
+	}
+	return nil, false
+}
+
+// Size 数据量
+func (bt *Btree) Size() int {
+	return bt.tree.Len()
+}
 
 // // Iterator 实现范围遍历的迭代器
 // func (bt *btree) Iterator() Iterator {
