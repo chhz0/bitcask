@@ -1,30 +1,23 @@
 package keydir
 
-import "github.com/chhz0/go-bitcask/internal/keydir/idx"
+import (
+	"github.com/chhz0/go-bitcask/internal/keydir/index"
+)
 
 // KeyDir 管理内存索引
 type KeyDir struct {
-	idx.Indexer
+	index.Indexer
+	// iter.Iterator
 }
 
-func NewKeyDir(indexType idx.IndexType) *KeyDir {
-	return &KeyDir{idx.New(indexType)}
-}
+func NewKeyDir(indexType string) *KeyDir {
+	var indexer index.Indexer
+	switch indexType {
+	case "btree":
+		indexer = index.New(index.BTREE)
+	default:
+		indexer = index.New(index.SHARDHASH)
+	}
 
-func (kr *KeyDir) Store(key []byte, value *idx.Index) {
-	kr.Put(key, value)
-}
-
-func (kr *KeyDir) Load(key []byte) (*idx.Index, bool) {
-	val, ok := kr.Get(key)
-
-	return val, ok
-}
-
-func (kr *KeyDir) Remove(key []byte) (*idx.Index, bool) {
-	return kr.Del(key)
-}
-
-func (kr *KeyDir) Keys() [][]byte {
-	return kr.Indexer.Keys()
+	return &KeyDir{indexer}
 }

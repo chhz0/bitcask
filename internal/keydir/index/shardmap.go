@@ -1,4 +1,4 @@
-package idx
+package index
 
 import (
 	"hash/maphash"
@@ -79,7 +79,7 @@ type ShardMap struct {
 	hasher     func(string) uint64 // 哈希函数
 }
 
-func NewShardMap(shardCount int, hasher func(string) uint64) *ShardMap {
+func newShardMap(shardCount int, hasher func(string) uint64) *ShardMap {
 	shards := make([]*shard, shardCount)
 	for i := 0; i < shardCount; i++ {
 		shards[i] = &shard{
@@ -165,7 +165,7 @@ func maphashFn(key string) uint64 {
 // func (sm *ShardMap) Iterator() Iterator {
 // 	return &shardIterator{
 // 		sm:       sm,
-// 		shardIdx: 0,
+// 		shardindex: 0,
 // 		keys:     sm.Keys(),
 // 		cursor:   -1,
 // 	}

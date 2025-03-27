@@ -1,4 +1,4 @@
-package idx
+package index
 
 import (
 	"bytes"
@@ -50,7 +50,7 @@ type Btree struct {
 // 	panic("unimplemented")
 // }
 
-func NewBTree(degree int) *Btree {
+func newBTree(degree int) *Btree {
 	return &Btree{
 		degree: degree,
 		tree:   gbtree.New(degree),

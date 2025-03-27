@@ -1,14 +1,14 @@
-package idx
+package index
 
 type IndexType int
 
 const (
-	HASH IndexType = iota
+	SHARDHASH IndexType = iota
 	BTREE
 )
 
 type Indexer interface {
-	Get(key []byte) (idx *Index, b bool)
+	Get(key []byte) (index *Index, b bool)
 	Put(key []byte, value *Index)
 	Del(key []byte) (old *Index, b bool)
 	Keys() [][]byte
@@ -37,6 +37,6 @@ func New(indexType IndexType) Indexer {
 	// case BTREE:
 	// 	return NewBTree(32)
 	default:
-		return NewShardMap(defaultShardCount, maphashFn)
+		return newShardMap(defaultShardCount, maphashFn)
 	}
 }

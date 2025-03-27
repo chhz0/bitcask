@@ -1,4 +1,4 @@
-package idx
+package index
 
 import (
 	"math/rand"
@@ -7,7 +7,7 @@ import (
 )
 
 func BenchmarkBtree_Write(b *testing.B) {
-	bt := NewBTree(32)
+	bt := newBTree(32)
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -24,7 +24,7 @@ func BenchmarkBtree_Write(b *testing.B) {
 }
 
 func initBtree(n int) *Btree {
-	bt := NewBTree(32)
+	bt := newBTree(32)
 	for i := 0; i < n; i++ {
 		key := strconv.Itoa(i)
 		bt.Put([]byte(key), &Index{})

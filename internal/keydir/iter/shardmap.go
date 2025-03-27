@@ -2,7 +2,7 @@ package iter
 
 // type shardIterator struct {
 // 	sm       *ShardMap
-// 	shardIdx int
+// 	shardindex int
 // 	keys     []string
 // 	cursor   int
 // 	sync.RWMutex
@@ -12,14 +12,14 @@ package iter
 // func (sit *shardIterator) Rewind() {
 // 	sit.Lock()
 // 	defer sit.Unlock()
-// 	sit.shardIdx = 0
+// 	sit.shardindex = 0
 // 	sit.cursor = -1
 // 	sit.loadKeys()
 // }
 
 // // Valid implements Iterator.
 // func (sit *shardIterator) Valid() bool {
-// 	return sit.cursor < len(sit.keys)-1 && sit.shardIdx < len(sit.sm.shareds)-1
+// 	return sit.cursor < len(sit.keys)-1 && sit.shardindex < len(sit.sm.shareds)-1
 // }
 
 // // Next implements Iterator.
@@ -30,7 +30,7 @@ package iter
 // 	if sit.cursor < len(sit.keys)-1 {
 // 		sit.cursor++
 // 	} else {
-// 		sit.shardIdx++
+// 		sit.shardindex++
 // 		sit.cursor = 0
 // 		sit.loadKeys()
 // 	}
@@ -38,7 +38,7 @@ package iter
 
 // // Value implements Iterator.
 // func (sit *shardIterator) Value() *entry.Index {
-// 	shard := sit.sm.shareds[sit.shardIdx]
+// 	shard := sit.sm.shareds[sit.shardindex]
 
 // 	entry, ok := shard.load(sit.keys[sit.cursor])
 // 	if !ok {
@@ -50,7 +50,7 @@ package iter
 // // Release implements Iterator.
 // func (sit *shardIterator) Release() {
 // 	sit.sm = nil
-// 	sit.shardIdx = 0
+// 	sit.shardindex = 0
 // 	sit.keys = nil
 // 	sit.cursor = -1
 // }
@@ -64,7 +64,7 @@ package iter
 // }
 
 // func (sit *shardIterator) loadKeys() {
-// 	shard := sit.sm.shareds[sit.shardIdx]
+// 	shard := sit.sm.shareds[sit.shardindex]
 
 // 	sit.keys = make([]string, 0, shard.ssize())
 // 	shard.forange(func(key string, value *entry.Index) bool {

@@ -40,7 +40,7 @@ Efficient log-structured key-value storage engine, designed for low-latency read
 ```
 ## 核心设计
 
-1. 日志化存储(DataFile)
+1. 日志化存储(Append-Only Log)
   - 将所有写操作以追加的方式记录到目前活跃的(ActiveFile)数据文件中
     - 数据文件格式: crc(4) + timestamp(8) + keySize(4) + valueSize(4)+ falg(1)  + key + value
   - 删除操作通过追加特殊墓碑值(Tombstone)实现逻辑删除，但不实际删除数据
@@ -101,5 +101,6 @@ ShardMap 是一个基于go原生map实现的分片哈希结构，用于快速定
 
 ## Inspired
 
-- [mini-bitcask](https://github.com/rosedblabs/mini-bitcask.git)
-- [bitcask](https://git.mills.io/prologic/bitcask)
+- [rosedblabs/mini-bitcask](https://github.com/rosedblabs/mini-bitcask.git)
+- [prologic/bitcask](https://git.mills.io/prologic/bitcask)
+- [ahmeducf/bitcask](https://github.com/ahmeducf/bitcask)

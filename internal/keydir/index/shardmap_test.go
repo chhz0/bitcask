@@ -1,4 +1,4 @@
-package idx
+package index
 
 import (
 	"math/rand"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestShardMap_CURD(t *testing.T) {
-	sm := NewShardMap(defaultShardCount, maphashFn)
+	sm := newShardMap(defaultShardCount, maphashFn)
 	key := []byte("exist-key")
 	expectedEntry := &Index{
 		FileID:  1,
@@ -47,7 +47,7 @@ const (
 
 // 初始化测试数据
 func initShardMap(n int) *ShardMap {
-	m := NewShardMap(defaultShardCount, maphashFn)
+	m := newShardMap(defaultShardCount, maphashFn)
 	for i := 0; i < n; i++ {
 		key := strconv.Itoa(i)
 		m.Put([]byte(key), &Index{})
@@ -64,7 +64,7 @@ func generateKey(r *rand.Rand) []byte {
 
 // BenchmarkShardMap_Write 基准测试：纯写入性能
 func BenchmarkShardMap_Write(b *testing.B) {
-	m := NewShardMap(defaultShardCount, maphashFn)
+	m := newShardMap(defaultShardCount, maphashFn)
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -119,7 +119,7 @@ func BenchmarkShardMap_RW50(b *testing.B) {
 func BenchmarkShardMap_HotShard(b *testing.B) {
 	// 自定义哈希函数使所有Key命中同一分片
 	hotHasher := func(string) uint64 { return 0 }
-	m := NewShardMap(defaultShardCount, maphashFn)
+	m := newShardMap(defaultShardCount, maphashFn)
 
 	b.Run("Write-Hot", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
@@ -149,7 +149,7 @@ func BenchmarkShardMap_HotShard(b *testing.B) {
 
 // 辅助函数：带自定义哈希的初始化
 func initShardMapWithHasher(n int, hasher func(string) uint64) *ShardMap {
-	m := NewShardMap(defaultShardCount, hasher)
+	m := newShardMap(defaultShardCount, hasher)
 	for i := 0; i < n; i++ {
 		key := strconv.Itoa(i)
 		m.Put([]byte(key), &Index{})
@@ -168,7 +168,7 @@ func BenchmarkShardMap_ShardCount(b *testing.B) {
 			// shardCount = count
 			// defer func() { shardCount = origShards }()
 
-			m := NewShardMap(count, maphashFn)
+			m := newShardMap(count, maphashFn)
 			b.RunParallel(func(pb *testing.PB) {
 				i := 0
 				for pb.Next() {

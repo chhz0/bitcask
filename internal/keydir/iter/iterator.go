@@ -1,12 +1,12 @@
 package iter
 
-import "github.com/chhz0/go-bitcask/internal/keydir/idx"
+import "github.com/chhz0/go-bitcask/internal/keydir/index"
 
 type Iterator interface {
 	Rewind()
 	Next()
 	Key() []byte
 	Valid() bool
-	Value() *idx.Index
+	Value() *index.Index
 	Release()
 }
