@@ -4,29 +4,20 @@ import (
 	"os"
 	"sync"
 
-	"github.com/chhz0/go-bitcask/internal/datafile"
 	"github.com/chhz0/go-bitcask/internal/keydir"
-	"github.com/gofrs/flock"
-)
-
-const (
-	SHARDHASH = "shardhash"
-	BTREE     = "btree"
 )
 
 type Bitcask struct {
 	rw        sync.RWMutex // rw lock
-	flock     *flock.Flock
-	fileMgr   *datafile.FileManager
-	keydir    *keydir.KeyDir // keydir
 	options   *Options
 	isMerging bool
 }
 
-// Open a new or an existing bitcask datastore
-func Open(dirPath string, opts ...Option) (*Bitcask, error) {
+// Open 打开或者创建 Bitcask, 支持读写 写入同步等
+// 仅支持单线程
+func Open(dir string, opts ...Option) (*Bitcask, error) {
 	o := &Options{
-		Dir:         dirPath,
+		Dir:         dir,
 		MaxFileSize: 1 << 30, // 1GB
 		SyncOnWrite: false,
 		ReadOnly:    false,
@@ -38,14 +29,13 @@ func Open(dirPath string, opts ...Option) (*Bitcask, error) {
 
 	// check config file && options
 	// if config file no exists, create a new  default config file
-	if err := checkOrMKdir(dirPath); err != nil {
+	if err := checkOrMKdir(dir); err != nil {
 		return nil, ErrCheckOrMkdir
 	}
 
 	// create a new bitcask instance
 	bitcask := &Bitcask{
 		rw:      sync.RWMutex{},
-		keydir:  keydir.NewKeyDir(SHARDHASH),
 		options: o,
 	}
 
@@ -58,24 +48,24 @@ func Open(dirPath string, opts ...Option) (*Bitcask, error) {
 	return bitcask, nil
 }
 
-func loadDataFiles(dir string, keyDir *keydir.KeyDir) error {
-
+// OpenReadOnly 以只读模式打开 Bitcask
+func OpenReadOnly(dir string) *Bitcask {
 	return nil
 }
 
 // Put Stores a key and a value in the bitcask datastore
-func (b *Bitcask) Put(key []byte, value []byte) error {
-	return nil
+func (b *Bitcask) Put(key []byte, value []byte) bool {
+	return true
 }
 
 // Get Reads a value by key from a datastore
-func (b *Bitcask) Get(key []byte) ([]byte, error) {
-	return nil, nil
+func (b *Bitcask) Get(key []byte) (bool, []byte) {
+	return true, nil
 }
 
 // Delete Removes a key from the datastore
-func (b *Bitcask) Delete(key []byte) error {
-	return nil
+func (b *Bitcask) Delete(key []byte) bool {
+	return true
 }
 
 // Close a bitcask data store and flushes all pending writes to disk
@@ -84,8 +74,8 @@ func (b *Bitcask) Close() error {
 }
 
 // ListKey Returns list of all keys
-func (b *Bitcask) ListKeys() error {
-	return nil
+func (b *Bitcask) ListKeys() ([][]byte, error) {
+	return nil, nil
 }
 
 // Sync Force any writes to sync to disk
@@ -113,6 +103,11 @@ func checkOrMKdir(dir string) error {
 	} else if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func loadDataFiles(dir string, keyDir *keydir.KeyDir) error {
 
 	return nil
 }
