@@ -1,9 +1,48 @@
-# go-bitcask
+# bitcask
 
-Efficient log-structured key-value storage engine, designed for low-latency read and write, high throughput and high reliability
+Bitcask 是一种日志结构哈希表的键值存储引擎，最初为 Riak 分布式数据库设计，具有通用性。其核心目标是实现低延迟读写、高吞吐量（尤其随机写入）、支持超内存数据集、崩溃友好（快速恢复且不丢数据）等
+
+## 核心设计
+
+Bitcask 实例对应一个目录, 仅允许一个进程打开该目录进行写入
+
+- 文件管理
+  - 目录中仅有一个`活跃文件`(active data file), 用于追加写入
+  - 当`活跃文件`大小到达阈值, 会被关闭并创建新的活跃文件
+  - 关闭后的文件(无论是主动关闭还是自动关闭)变为immutable(不可变), 不再进行写入
+  - 数据目录格式
+
+| crc | tstamp | ksz | value_sz | key | value |
+| --- | ------ | --- | -------- | --- | ----- |
+| 校验和 | 时间戳 | 键的大小 | 值的大小 | 键 | 值(删除为墓碑值) |
+
+- keydir
+  内存中的哈希表, 映射每个键到最近数据的元信息
+
+| file_id | value_sz | value_pos | tstamp |
+| ------- | -------- | --------- | ------ |
+| 文件ID | 值大小 | 值位置 | 时间戳 |
+
+keydir写入时原子更新, 确保读取时直接获取到最新数据位置, 避免扫盘; 确保读取仅需 1 次磁盘寻道.
+
+- 读, 写, 合并过程
+  - 读取过程: 在keydir中查询键对应的文件ID, 键位置和大小, 基于该元信息直接读取磁盘数据
+  - 写入过程: 将键值条目追加到活跃文件, 原子更新keydir, 记录该键值对应的最新数据位置; 旧数据依旧在磁盘, 但其不会再被读取
+  - 合并操作: 将清理掉 immutable(不可变) 文件中的旧数据和墓碑值, 仅保留每个键的最新版本, 产生新的合并数据文件, 以及hint文件(记录元信息, 加速后续启动)
+
+<!--
+
+目标:
+性能：早期测试中，笔记本慢磁盘上随机写入吞吐量达5000-6000 次 / 秒，延迟中位数低于 1 毫秒；读取依赖 OS 缓存，效率高。
+超内存支持：测试中数据集为内存的 10 倍以上，性能无退化。
+崩溃恢复：数据文件即日志，无需回放；hint 文件可加速启动。
+备份恢复：文件 immutable，支持系统级备份；恢复仅需将数据文件放入目标目录。
+简洁性：代码和数据格式简单，易于理解和维护
+ -->
+
 
 ```txt
-/go-bitcask(暂定)
+/go-bitcask(待修改)
   ├── cmd
   │   └── go-bitcask-cli            # 命令行工具入口（可选）
   ├── internal
@@ -40,58 +79,8 @@ Efficient log-structured key-value storage engine, designed for low-latency read
   └── README.md
 ```
 
-## 核心设计
 
-1. 日志化存储(Append-Only Log)
-
-- 将所有写操作以追加的方式记录到目前活跃的(ActiveFile)数据文件中
-  - 数据文件格式: crc(4) + timestamp(8) + keySize(4) + valueSize(4)+ falg(1)  + key + value
-- 删除操作通过追加特殊墓碑值(Tombstone)实现逻辑删除，但不实际删除数据
-
-2. 内存索引(KeyDir)
-
-- 内存中维护一个哈希表(ShardMap)，用于快速定位数据记录
-- 索引记录结构: Key + fileID + ValuePos + [timestamp + expireTime]
-
-3. 数据合并(Compaction)
-
-- 定期将旧数据文件(OldFiles)合并成新的数据文件，清理无效数据
-- 合并结束后生成 `hint`文件，加速索引构建
-
-4. 快速崩溃恢复
-
-- 重启时，从 `hint`文件中加载索引，快速恢复内存索引，避免全量扫描数据文件
-
-## entry
-
-### data entry
-
-文件日记记录：
-
-```
-header[19] = CRC(4) + Timestamp(8) + KeySize(2) + ValueSize(4) + Deleted(1)
-
-| header  | Key(N) | Value(M) |
-
-// DataEntry 文件日志记录结构
-type DataEntry struct {
- CRC       uint32 // crc校验码(Header + Key + Value)
- Timestamp uint64 // 时间戳 (unix时间戳)
- Key       []byte
- Value     []byte
- Delete    bool
-}
-```
-
-- `CRC`：校验范围除 CRC 字段以外的所有字段，用于校验数据是否损坏
-
-> tcask 论文提供的结构如下:
->
-> ![data entry](./docs/image/bitcask-data.jpg)
-
-### Index
-
-### ShardMap
+## ShardMap
 
 ShardMap 是一个基于go原生map实现的分片哈希结构，用于快速定位数据记录
 
