@@ -31,8 +31,8 @@ func NewDataFileManager(dir string, maxFileSize int64) (*FileManager, error) {
 	}
 
 	for _, entry := range entris {
-		if strings.HasSuffix(entry.Name(), DataFileSuffix) {
-			fileIDStr := strings.TrimSuffix(entry.Name(), DataFileSuffix)
+		if strings.HasSuffix(entry.Name(), dataFileSuffix) {
+			fileIDStr := strings.TrimSuffix(entry.Name(), dataFileSuffix)
 			fileID, err := strconv.Atoi(fileIDStr)
 			if err == nil && fileID > maxFileID {
 				maxFileID = fileID

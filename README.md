@@ -1,7 +1,8 @@
 # go-bitcask
+
 Efficient log-structured key-value storage engine, designed for low-latency read and write, high throughput and high reliability
 
-```
+```txt
 /go-bitcask(暂定)
   ├── cmd
   │   └── go-bitcask-cli            # 命令行工具入口（可选）
@@ -38,26 +39,35 @@ Efficient log-structured key-value storage engine, designed for low-latency read
   ├── go.mod
   └── README.md
 ```
+
 ## 核心设计
 
 1. 日志化存储(Append-Only Log)
-  - 将所有写操作以追加的方式记录到目前活跃的(ActiveFile)数据文件中
-    - 数据文件格式: crc(4) + timestamp(8) + keySize(4) + valueSize(4)+ falg(1)  + key + value
-  - 删除操作通过追加特殊墓碑值(Tombstone)实现逻辑删除，但不实际删除数据
+
+- 将所有写操作以追加的方式记录到目前活跃的(ActiveFile)数据文件中
+  - 数据文件格式: crc(4) + timestamp(8) + keySize(4) + valueSize(4)+ falg(1)  + key + value
+- 删除操作通过追加特殊墓碑值(Tombstone)实现逻辑删除，但不实际删除数据
+
 2. 内存索引(KeyDir)
-  - 内存中维护一个哈希表(ShardMap)，用于快速定位数据记录
-  - 索引记录结构: Key + fileID + ValuePos + [timestamp + expireTime]
+
+- 内存中维护一个哈希表(ShardMap)，用于快速定位数据记录
+- 索引记录结构: Key + fileID + ValuePos + [timestamp + expireTime]
+
 3. 数据合并(Compaction)
-  - 定期将旧数据文件(OldFiles)合并成新的数据文件，清理无效数据
-  - 合并结束后生成 `hint`文件，加速索引构建
+
+- 定期将旧数据文件(OldFiles)合并成新的数据文件，清理无效数据
+- 合并结束后生成 `hint`文件，加速索引构建
+
 4. 快速崩溃恢复
-  - 重启时，从 `hint`文件中加载索引，快速恢复内存索引，避免全量扫描数据文件
+
+- 重启时，从 `hint`文件中加载索引，快速恢复内存索引，避免全量扫描数据文件
 
 ## entry
 
 ### data entry
 
 文件日记记录：
+
 ```
 header[19] = CRC(4) + Timestamp(8) + KeySize(2) + ValueSize(4) + Deleted(1)
 
@@ -65,25 +75,23 @@ header[19] = CRC(4) + Timestamp(8) + KeySize(2) + ValueSize(4) + Deleted(1)
 
 // DataEntry 文件日志记录结构
 type DataEntry struct {
-	CRC       uint32 // crc校验码(Header + Key + Value)
-	Timestamp uint64 // 时间戳 (unix时间戳)
-	Key       []byte
-	Value     []byte
-	Delete    bool
+ CRC       uint32 // crc校验码(Header + Key + Value)
+ Timestamp uint64 // 时间戳 (unix时间戳)
+ Key       []byte
+ Value     []byte
+ Delete    bool
 }
 ```
-- `CRC`：校验范围除 CRC 字段以外的所有字段，用于校验数据是否损坏
 
+- `CRC`：校验范围除 CRC 字段以外的所有字段，用于校验数据是否损坏
 
 > tcask 论文提供的结构如下:
 >
 > ![data entry](./docs/image/bitcask-data.jpg)
 
-###  Index
-
+### Index
 
 ### ShardMap
-
 
 ShardMap 是一个基于go原生map实现的分片哈希结构，用于快速定位数据记录
 
@@ -93,11 +101,10 @@ ShardMap 是一个基于go原生map实现的分片哈希结构，用于快速定
   - `读写分离` 使用sync.RWMutex读写锁，允许并发读，写互斥
 
 > 分片map的相关资料
-> - https://github.com/orcaman/concurrent-map
-> - https://github.com/HDT3213/godis/blob/master/datastruct/dict/concurrent.go
-> - https://github.com/jianghushinian/blog-go-example/tree/main/sync/map/concurrent-map
-
-
+>
+> - <https://github.com/orcaman/concurrent-map>
+> - <https://github.com/HDT3213/godis/blob/master/datastruct/dict/concurrent.go>
+> - <https://github.com/jianghushinian/blog-go-example/tree/main/sync/map/concurrent-map>
 
 ## Inspired
 

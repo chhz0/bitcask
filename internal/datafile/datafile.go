@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	DataFileSuffix = ".bit"
-	DataFileFormat = "%08d"
+	dataFileSuffix = ".bit"
+	dataFileFormat = "%08d"
 )
 
 type iDataFile interface {
@@ -41,7 +41,7 @@ type dataFile struct {
 var _ iDataFile = (*dataFile)(nil)
 
 func newDataFile(dir string, fileID int, readOnly bool) (*dataFile, error) {
-	filePath := filepath.Join(dir, fmt.Sprintf(DataFileFormat+DataFileSuffix, fileID))
+	filePath := filepath.Join(dir, fmt.Sprintf(dataFileFormat+dataFileSuffix, fileID))
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, err
@@ -153,5 +153,5 @@ func (f *dataFile) Destroy() error {
 	if err != nil {
 		return err
 	}
-	return os.Remove(filepath.Join(f.fpath, fmt.Sprintf(DataFileFormat+DataFileSuffix, f.fid)))
+	return os.Remove(filepath.Join(f.fpath, fmt.Sprintf(dataFileFormat+dataFileSuffix, f.fid)))
 }
