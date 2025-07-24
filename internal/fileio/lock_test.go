@@ -11,7 +11,10 @@ import (
 func Test_Lock(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "filelock")
 	lock := NewLock(tmpDir)
-	defer lock.unlock()
+
+	defer func() {
+		_ = lock.unlock()
+	}()
 
 	if err := lock.TryLock(); err != nil {
 		t.Logf("dir %s is lock: %v", tmpDir, err)

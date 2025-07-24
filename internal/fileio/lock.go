@@ -9,11 +9,11 @@ import (
 )
 
 var (
-	ErrAlreadyLocked = errors.New("directory is already locked")
-	ErrNotLocked     = errors.New("directory is not locked")
-	ErrLockTimeout   = errors.New("lock acquisition timed out")
-	ErrLockFailed    = errors.New("failed to acquisition lock")
-	ErrUnSupported   = errors.New("operation not supported on this platform")
+	ErrAlreadyLocked = errors.New("directory is already locked.")
+	ErrNotLocked     = errors.New("directory is not locked.")
+	ErrLockTimeout   = errors.New("lock acquisition timed out.")
+	ErrLockFailed    = errors.New("failed to acquisition lock.")
+	ErrUnSupported   = errors.New("operation not supported on this platform.")
 )
 
 // Lock is a dir lock :)
