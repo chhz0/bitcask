@@ -3,8 +3,6 @@ package bitcask
 import (
 	"os"
 	"sync"
-
-	"github.com/chhz0/go-bitcask/internal/keydir"
 )
 
 type Bitcask struct {
@@ -103,11 +101,6 @@ func checkOrMKdir(dir string) error {
 	} else if err != nil {
 		return err
 	}
-
-	return nil
-}
-
-func loadDataFiles(dir string, keyDir *keydir.KeyDir) error {
 
 	return nil
 }
